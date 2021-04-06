@@ -5,9 +5,15 @@ import subprocess
 import sys
 from os import system
 
+
 s = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM)
 s.bind((socket.VMADDR_CID_ANY, 52))
 s.listen()
+
+# Send we are ready
+s0 = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM)
+s0.connect((2, 52))
+s0.close()
 
 print("MANAGER READY")
 

@@ -131,7 +131,7 @@ async def main():
                 os.remove(path='/tmp/firecracker.socket')
             proc = await start_firecracker()
             print("Waiting a bit...")
-            await asyncio.sleep(2)
+            await asyncio.sleep(0.5)
             print("Waited")
         else:
             proc = None
@@ -149,12 +149,13 @@ async def main():
         await start_machine(session)
 
         print("Waiting for start")
-        signal = b"MANAGER READY"
-        while True:
-            line = await proc.stdout.readline()
-            print('|', line.decode().strip())
-            if signal in line:
-                break
+        queue = asyncio.Queue()
+        async def unix_client_connected(*args):
+            print('args', args)
+            await queue.put(True)
+        await asyncio.start_unix_server(unix_client_connected, path='/tmp/v.sock_52')
+        await queue.get()
+
         print("ready")
 
         while True:
