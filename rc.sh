@@ -2,18 +2,18 @@
 
 echo "=== My Bash RC ==="
 
-#ls /
-#ls /dev
-#
-#mkdir /dev/pts
-#mkdir /dev/shm
-#
-#mount -t proc proc /proc -o nosuid,noexec,nodev
-#mount -t sysfs sys /sys -o nosuid,noexec,nodev
-#mount -t tmpfs run /run -o mode=0755,nosuid,nodev
-##mount -t devtmpfs dev /dev -o mode=0755,nosuid
-#mount -t devpts devpts /dev/pts -o mode=0620,gid=5,nosuid,noexec
-#mount -t tmpfs shm /dev/shm -omode=1777,nosuid,nodev
+ls /
+ls /dev
+
+mkdir /dev/pts
+mkdir /dev/shm
+
+mount -t proc proc /proc -o nosuid,noexec,nodev
+mount -t sysfs sys /sys -o nosuid,noexec,nodev
+mount -t tmpfs run /run -o mode=0755,nosuid,nodev
+#mount -t devtmpfs dev /dev -o mode=0755,nosuid
+mount -t devpts devpts /dev/pts -o mode=0620,gid=5,nosuid,noexec
+mount -t tmpfs shm /dev/shm -omode=1777,nosuid,nodev
 
 
 sleep 0.5
@@ -28,12 +28,19 @@ ip addr
 
 echo "Net up"
 
-/usr/sbin/sshd -de
+/root/entropy.py
+
+/usr/sbin/sshd -d -E /var/log/sshd &
+#/usr/sbin/sshd -de &
 
 echo "SSH UP"
 
 python3 --version
 /root/manager.py
+
+echo "TERM $TERM"
+
+#/sbin/agetty --autologin root -o '-p -- \\u' --keep-baud /dev/ttyS0 $TERM
 
 ps aux
 

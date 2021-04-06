@@ -47,8 +47,17 @@ echo "nameserver 8.8.8.8" >> /mnt/rootfs/etc/resolv.conf
 
 chroot /mnt/rootfs /bin/sh <<EOT
 #apk add openrc
-#apk add util-linux
+echo -e "toor\ntoor" | passwd root
+apk add util-linux
 apk add python3
+apk add openssh-server
+
+## Generate SSH host keys
+#ssh-keygen -q -N "" -t dsa -f /etc/ssh/ssh_host_dsa_key
+#ssh-keygen -q -N "" -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key
+#ssh-keygen -q -N "" -t ecdsa -f /etc/ssh/ssh_host_ecdsa_key
+#ssh-keygen -q -N "" -t ed25519 -f /etc/ssh/ssh_host_ed25519_key
+
 #
 ## Set up a login terminal on the serial console (ttyS0):
 ln -s agetty /etc/init.d/agetty.ttyS0
@@ -60,6 +69,14 @@ echo ttyS0 > /etc/securetty
 #rc-update add procfs boot
 #rc-update add sysfs boot
 EOT
+
+echo "PermitRootLogin yes" >> /mnt/rootfs/etc/ssh/sshd_config
+
+# Generate SSH host keys
+systemd-nspawn -D /mnt/rootfs/ ssh-keygen -q -N "" -t dsa -f /etc/ssh/ssh_host_dsa_key
+systemd-nspawn -D /mnt/rootfs/ ssh-keygen -q -N "" -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key
+systemd-nspawn -D /mnt/rootfs/ ssh-keygen -q -N "" -t ecdsa -f /etc/ssh/ssh_host_ecdsa_key
+systemd-nspawn -D /mnt/rootfs/ ssh-keygen -q -N "" -t ed25519 -f /etc/ssh/ssh_host_ed25519_key
 
 cat <<EOT > /mnt/rootfs/etc/inittab
 # /etc/inittab
@@ -88,11 +105,13 @@ ttyS0::respawn:/sbin/getty -L ttyS0 115200 vt100
 EOT
 
 # Custom init
-cp /mnt/rootfs/sbin/init /mnt/rootfs/sbin/init.orig
-cp rc.sh /mnt/rootfs/sbin/myrc
+mv /mnt/rootfs/sbin/init /mnt/rootfs/sbin/init.orig
+cp rc.sh /mnt/rootfs/sbin/init
 cp manager.py /mnt/rootfs/root/manager.py
-chmod +x /mnt/rootfs/sbin/myrc
+cp entropy.py /mnt/rootfs/root/entropy.py
+chmod +x /mnt/rootfs/sbin/init
 chmod +x /mnt/rootfs/root/manager.py
+chmod +x /mnt/rootfs/root/entropy.py
 
 umount /mnt/rootfs
 

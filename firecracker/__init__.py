@@ -1,5 +1,6 @@
 import asyncio
 import os
+import sys
 import time
 
 import aiohttp
@@ -43,10 +44,13 @@ async def setfacl():
 
 async def start_firecracker():
     cmd = "./firecracker.bin --api-sock /tmp/firecracker.socket"
-    proc = await asyncio.create_subprocess_shell(
-        cmd,
+    proc = await asyncio.create_subprocess_exec(
+        './firecracker.bin',
+        "--api-sock", "/tmp/firecracker.socket",
+        stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE)
+        stderr=asyncio.subprocess.PIPE,
+    )
     # stdout, stderr = await proc.communicate()
 
     # print(f'[{cmd!r} exited with {proc.returncode}]')
@@ -60,7 +64,7 @@ async def start_firecracker():
 async def set_kernel(session: aiohttp.ClientSession):
     data = {
         "kernel_image_path": dest_kernel,
-        "boot_args": "console=ttyS0 reboot=k panic=1 pci=off init=/sbin/init rdinit=/sbin/init",
+        "boot_args": "console=ttyS0 reboot=k panic=1 pci=off",
     }
     response: ClientResponse = await session.put('http://localhost/boot-source',
                                  json=data)
@@ -119,13 +123,16 @@ async def start_machine(session: aiohttp.ClientSession):
 async def main():
     await setfacl()
 
+    proc = None
     try:
         print("./firecracker.bin --api-sock /tmp/firecracker.socket")
-        if input("Start Firecracker here ?"):
+        if not input("Using existing Firecracker here ?"):
             if os.path.exists(path='/tmp/firecracker.socket'):
                 os.remove(path='/tmp/firecracker.socket')
             proc = await start_firecracker()
-            await asyncio.sleep(3)
+            print("Waiting a bit...")
+            await asyncio.sleep(2)
+            print("Waited")
         else:
             proc = None
 
@@ -141,7 +148,16 @@ async def main():
 
         await start_machine(session)
 
-        for i in range(5):
+        print("Waiting for start")
+        signal = b"MANAGER READY"
+        while True:
+            line = await proc.stdout.readline()
+            print('|', line.decode().strip())
+            if signal in line:
+                break
+        print("ready")
+
+        while True:
             data = input("Send some data ? ")
             reader, writer = await asyncio.open_unix_connection(path='/tmp/v.sock')
             writer.write(('CONNECT 52\n' + data + '\n').encode())
@@ -149,16 +165,15 @@ async def main():
 
             ack = await reader.readline()
             print('ack=', ack)
-            response = await reader.read(100)
-            print('response=', response)
+            response = await reader.read()
+            print(f'<<<\n{response.decode()}>>>')
             writer.close()
             await writer.wait_closed()
 
-        input("Running...")
-
-        if proc:
-            proc.kill()
     finally:
+        if proc:
+            proc.terminate()
+            proc.kill()
         if os.path.exists(path='/tmp/firecracker.socket'):
             os.remove(path='/tmp/firecracker.socket')
 
