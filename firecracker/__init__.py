@@ -9,8 +9,20 @@ from os import getuid
 
 arch='x86_64'
 dest_kernel="hello-vmlinux.bin"
-dest_rootfs="disks/hello-rootfs.ext4"
+dest_rootfs="disks/rootfs.ext4"
 # image_bucket_url="https://s3.amazonaws.com/spec.ccfc.min/img"
+
+
+async def net_create_tap():
+    name = "tap0"
+    os.system(f"sudo ip tuntap add {name} mode tap")
+
+    os.system("ip addr add 172.16.0.1/24 dev tap0")
+    os.system("ip link set tap0 up")
+    os.system('sh -c "echo 1 > /proc/sys/net/ipv4/ip_forward"')
+    os.system("iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE")
+    os.system("iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT")
+    os.system("iptables -A FORWARD -i tap0 -o eth0 -j ACCEPT")
 
 
 async def setfacl():
@@ -48,7 +60,7 @@ async def start_firecracker():
 async def set_kernel(session: aiohttp.ClientSession):
     data = {
         "kernel_image_path": dest_kernel,
-        "boot_args": "console=ttyS0 reboot=k panic=1 pci=off",
+        "boot_args": "console=ttyS0 reboot=k panic=1 pci=off init=/sbin/init rdinit=/sbin/init",
     }
     response: ClientResponse = await session.put('http://localhost/boot-source',
                                  json=data)
@@ -69,6 +81,32 @@ async def set_rootfs(session: aiohttp.ClientSession):
     print([response.text])
 
 
+async def set_vsock(session: aiohttp.ClientSession):
+    if os.path.exists(path='/tmp/v.sock'):
+        os.remove(path='/tmp/v.sock')
+    data = {
+        "vsock_id": "1",
+        "guest_cid": 3,
+        "uds_path": "/tmp/v.sock"
+    }
+    response = await session.put('http://localhost/vsock',
+                                 json=data)
+    print(response)
+    print([response.text])
+
+
+async def set_network(session: aiohttp.ClientSession):
+    data = {
+        "iface_id": "eth0",
+        "guest_mac": "AA:FC:00:00:00:01",
+        "host_dev_name": "tap0",
+    }
+    response = await session.put('http://localhost/network-interfaces/eth0',
+                                 json=data)
+    print(response)
+    print([response.text])
+
+
 async def start_machine(session: aiohttp.ClientSession):
     data = {
         "action_type": "InstanceStart",
@@ -80,13 +118,16 @@ async def start_machine(session: aiohttp.ClientSession):
 
 async def main():
     await setfacl()
-    if os.path.exists(path='/tmp/firecracker.socket'):
-        os.remove(path='/tmp/firecracker.socket')
+
     try:
         print("./firecracker.bin --api-sock /tmp/firecracker.socket")
         if input("Start Firecracker here ?"):
+            if os.path.exists(path='/tmp/firecracker.socket'):
+                os.remove(path='/tmp/firecracker.socket')
             proc = await start_firecracker()
             await asyncio.sleep(3)
+        else:
+            proc = None
 
         conn = aiohttp.UnixConnector(path='/tmp/firecracker.socket')
         session = aiohttp.ClientSession(connector=conn)
@@ -94,11 +135,29 @@ async def main():
 
         await set_rootfs(session)
 
+        await set_network(session)
+
+        await set_vsock(session)
+
         await start_machine(session)
+
+        for i in range(5):
+            data = input("Send some data ? ")
+            reader, writer = await asyncio.open_unix_connection(path='/tmp/v.sock')
+            writer.write(('CONNECT 52\n' + data + '\n').encode())
+            await writer.drain()
+
+            ack = await reader.readline()
+            print('ack=', ack)
+            response = await reader.read(100)
+            print('response=', response)
+            writer.close()
+            await writer.wait_closed()
 
         input("Running...")
 
-        proc.kill()
+        if proc:
+            proc.kill()
     finally:
         if os.path.exists(path='/tmp/firecracker.socket'):
             os.remove(path='/tmp/firecracker.socket')
