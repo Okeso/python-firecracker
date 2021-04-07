@@ -5,7 +5,7 @@ https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html
 
 # Todo
 
-## Jailed
+## ✓ Jailed
 
 Use jailed to secure the VM
 
@@ -33,7 +33,7 @@ Pool of VMs ready to be used for faster start.
 Dynamic size could be interesting, keeping track
 of host resources would be best.
 
-## Read-only rootfs
+## ✓ Read-only rootfs
 
 Rootfs in squashfs
 Overlay on tmpfs or other disk

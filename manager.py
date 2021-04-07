@@ -5,7 +5,6 @@ import subprocess
 import sys
 from os import system
 
-
 s = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM)
 s.bind((socket.VMADDR_CID_ANY, 52))
 s.listen()

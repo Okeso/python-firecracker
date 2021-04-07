@@ -52,6 +52,11 @@ apk add util-linux
 apk add python3
 apk add openssh-server
 
+mkdir -p /overlay
+
+# For aleph-client
+#apk add build-base py3-pip py3-wheel python3-dev libffi py3-cffi libsecp256k1-dev
+
 ## Generate SSH host keys
 #ssh-keygen -q -N "" -t dsa -f /etc/ssh/ssh_host_dsa_key
 #ssh-keygen -q -N "" -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key
@@ -77,6 +82,8 @@ systemd-nspawn -D /mnt/rootfs/ ssh-keygen -q -N "" -t dsa -f /etc/ssh/ssh_host_d
 systemd-nspawn -D /mnt/rootfs/ ssh-keygen -q -N "" -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key
 systemd-nspawn -D /mnt/rootfs/ ssh-keygen -q -N "" -t ecdsa -f /etc/ssh/ssh_host_ecdsa_key
 systemd-nspawn -D /mnt/rootfs/ ssh-keygen -q -N "" -t ed25519 -f /etc/ssh/ssh_host_ed25519_key
+
+#systemd-nspawn -D /mnt/rootfs/ pip install aleph-client
 
 cat <<EOT > /mnt/rootfs/etc/inittab
 # /etc/inittab

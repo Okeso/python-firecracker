@@ -20,3 +20,5 @@ apk add python3
 # Upgrade Alpine to 3.13
 # https://wiki.alpinelinux.org/wiki/Upgrading_Alpine
 
+createuser jailer
+./jailer-v0.24.2-x86_64 --id 551e7604-e35c-42b3-b825-416853441234 --exec-file /root/python-firecracker/firecracker.bin --uid 1000 --gid 1000
