@@ -29,12 +29,26 @@ while True:
         system('sync')
         client.send(b'STOP\n')
         sys.exit()
-    else:
+    elif msg.startswith('!'):
+        # Shell
+        msg = msg[1:]
         try:
             output = subprocess.check_output(msg, stderr=subprocess.STDOUT, shell=True)
             client.send(output)
         except subprocess.CalledProcessError as error:
             client.send(str(error).encode() + b'\n' + error.output)
+    else:
+        # Python
+        with open('/root/main.py', 'w') as sourcefile:
+            sourcefile.write(msg)
+        try:
+            command = "python3 /root/main.py"
+            output = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=True)
+            # preexec_fn=demote(1000, 1000)
+            client.send(output)
+        except subprocess.CalledProcessError as error:
+            client.send(str(error).encode() + b'\n' + error.output)
+
 
     print('...DONE')
     client.close()

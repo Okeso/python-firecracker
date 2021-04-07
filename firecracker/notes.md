@@ -48,3 +48,6 @@ pivot_root /mnt /mnt/rom
 
 https://github.com/firecracker-microvm/firecracker-containerd/pull/153/files
 
+## Don't run as root
+
+Add a way to run `setfacl` as root but not the rest.
