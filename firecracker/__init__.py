@@ -77,7 +77,7 @@ async def set_rootfs(session: aiohttp.ClientSession):
         "drive_id": "rootfs",
         "path_on_host": dest_rootfs,
         "is_root_device": True,
-        "is_read_only": False,
+        "is_read_only": True,
     }
     response = await session.put('http://localhost/drives/rootfs',
                                  json=data)
