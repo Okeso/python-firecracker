@@ -1,10 +1,10 @@
 import asyncio
+from os import system
 
 import aiohttp
 from aiohttp import web
 
-from firecracker.setup import setfacl
-from firecracker.vm import MicroVM
+from firecracker.vm import MicroVM, setfacl
 
 
 async def index(request: aiohttp.web.Request):
@@ -17,6 +17,7 @@ async def get_new_vm() -> MicroVM:
     vm = MicroVM(vm_id)
     vm.cleanup_jailer()
     await vm.start_jailed_firecracker()
+    await asyncio.sleep(1)
     await vm.set_boot_source('hello-vmlinux.bin')
     await vm.set_rootfs('disks/rootfs.ext4')
     await vm.set_vsock()
@@ -35,7 +36,8 @@ async def run_code(request: aiohttp.web.Request):
     result = {
         'output': (await vm.run_code(code)).decode()
     }
-    vm.stop()
+    await vm.stop()
+    system(f"rm -fr {vm.jailer_path}")
     return web.json_response(result)
 
 

@@ -3,7 +3,6 @@ from functools import lru_cache
 from os import system, getuid
 import os.path
 from pathlib import Path
-from shutil import copyfile
 
 import aiohttp
 from aiohttp import ClientResponse
@@ -18,7 +17,9 @@ async def setfacl():
         stderr=asyncio.subprocess.PIPE)
     stdout, stderr = await proc.communicate()
 
-    print(f'[{cmd!r} exited with {proc.returncode}]')
+    if proc.returncode == 0:
+        return
+    print(f'[{cmd!r} exited with {[proc.returncode]}]')
     if stdout:
         print(f'[stdout]\n{stdout.decode()}')
     if stderr:
@@ -50,17 +51,21 @@ class MicroVM:
         return aiohttp.ClientSession(connector=conn)
 
     def cleanup_jailer(self):
-        system(f"rm -fr {self.jailer_path}/run/")
-        system(f"rm -fr {self.jailer_path}/dev/")
+        system(f"rm -fr {self.jailer_path}")
 
-        if os.path.exists(path=self.vsock_path):
-            os.remove(path=self.vsock_path)
-
+        # system(f"rm -fr {self.jailer_path}/run/")
+        # system(f"rm -fr {self.jailer_path}/dev/")
+        # system(f"rm -fr {self.jailer_path}/opt/")
+        #
+        # if os.path.exists(path=self.vsock_path):
+        #     os.remove(path=self.vsock_path)
+        #
         system(f"mkdir -p {self.jailer_path}/tmp/")
         system(f"chown jailman:jailman {self.jailer_path}/tmp/")
-
+        #
         system(f"mkdir -p {self.jailer_path}/opt")
-        system(f"cp disks/rootfs.ext4 {self.jailer_path}/opt")
+
+        # system(f"cp disks/rootfs.ext4 {self.jailer_path}/opt")
         # system(f"cp hello-vmlinux.bin {self.jailer_path}/opt")
 
     async def start_jailed_firecracker(self) -> asyncio.subprocess.Process:
@@ -77,7 +82,7 @@ class MicroVM:
     async def set_boot_source(self, kernel_image_path: str):
         kernel_filename = Path(kernel_image_path).name
         jailer_kernel_image_path = f"/opt/{kernel_filename}"
-        copyfile(kernel_image_path, f"{self.jailer_path}{jailer_kernel_image_path}")
+        os.link(kernel_image_path, f"{self.jailer_path}{jailer_kernel_image_path}")
         data = {
             "kernel_image_path": jailer_kernel_image_path,
             "boot_args": "console=ttyS0 reboot=k panic=1 pci=off",
@@ -86,14 +91,12 @@ class MicroVM:
         response: ClientResponse = await session.put(
             'http://localhost/boot-source',
             json=data)
-        print(response)
-        print([await response.text()])
         response.raise_for_status()
 
     async def set_rootfs(self, path_on_host: str):
         rootfs_filename = Path(path_on_host).name
         jailer_path_on_host = f"/opt/{rootfs_filename}"
-        copyfile(path_on_host, f"{self.jailer_path}{rootfs_filename}")
+        os.link(path_on_host, f"{self.jailer_path}/{jailer_path_on_host}")
         data = {
             "drive_id": "rootfs",
             "path_on_host": jailer_path_on_host,
@@ -103,8 +106,6 @@ class MicroVM:
         session = self.get_session()
         response = await session.put('http://localhost/drives/rootfs',
                                      json=data)
-        print(response)
-        print([await response.text()])
         response.raise_for_status()
 
     async def set_vsock(self):
@@ -116,8 +117,6 @@ class MicroVM:
         session = self.get_session()
         response = await session.put('http://localhost/vsock',
                                      json=data)
-        print(response)
-        print([await response.text()])
         response.raise_for_status()
 
     async def set_network(self):
@@ -129,8 +128,6 @@ class MicroVM:
         session = self.get_session()
         response = await session.put('http://localhost/network-interfaces/eth0',
                                      json=data)
-        print(response)
-        print([await response.text()])
         response.raise_for_status()
 
     async def start_instance(self):
@@ -140,23 +137,20 @@ class MicroVM:
         session = self.get_session()
         response = await session.put('http://localhost/actions',
                                      json=data)
-        print(response)
-        print([await response.text()])
         response.raise_for_status()
 
     async def wait_for_init(self):
         """Wait for a connection from the init in the VM"""
-        print("Waiting for signal")
+        print("Waiting for init...")
         queue = asyncio.Queue()
 
         async def unix_client_connected(*args):
-            print('args', args)
             await queue.put(True)
 
         await asyncio.start_unix_server(unix_client_connected, path=f"{self.vsock_path}_52")
         os.system(f"chown 1000:1000 {self.jailer_path}/tmp/v.sock_52")
         await queue.get()
-        print("signal received")
+        print("...signal from init received")
 
     async def run_code(self, code: str):
         reader, writer = await asyncio.open_unix_connection(path=self.vsock_path)
@@ -164,17 +158,16 @@ class MicroVM:
         await writer.drain()
 
         ack = await reader.readline()
-        print('ack=', ack)
+        print('ack=', ack.decode())
         response = await reader.read()
-        print(f'<<<\n{response.decode()}>>>')
+        print(f'response= <<<\n{response.decode()}>>>')
         writer.close()
         await writer.wait_closed()
         return response
 
-    def stop(self):
+    async def stop(self):
         if self.proc:
             self.proc.terminate()
             self.proc.kill()
-
-    def __del__(self):
-        self.stop()
+        await self.get_session().close()
+        self.get_session.cache_clear()
