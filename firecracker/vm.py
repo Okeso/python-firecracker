@@ -8,6 +8,11 @@ import aiohttp
 from aiohttp import ClientResponse
 
 
+def sys(command):
+    print(command)
+    os.system(command)
+
+
 async def setfacl():
     user = getuid()
     cmd = f"sudo setfacl -m u:{user}:rw /dev/kvm"
@@ -79,6 +84,10 @@ class MicroVM:
         )
         return self.proc
 
+    async def socket_is_ready(self, delay=0.01):
+        while not os.path.exists(self.socket_path):
+            await asyncio.sleep(delay)
+
     async def set_boot_source(self, kernel_image_path: str):
         kernel_filename = Path(kernel_image_path).name
         jailer_kernel_image_path = f"/opt/{kernel_filename}"
@@ -120,14 +129,28 @@ class MicroVM:
         response.raise_for_status()
 
     async def set_network(self):
+        # TODO: Only supports one VM at a time
+        name = f"tap{self.vm_id}"
+
+        sys(f"ip tuntap add {name} mode tap")
+        sys(f"ip addr add 172.16.{self.vm_id}.1/24 dev {name}")
+        sys(f"ip link set {name} up")
+        sys('sh -c "echo 1 > /proc/sys/net/ipv4/ip_forward"')
+        # TODO: Don't fill iptables with duplicate rules; purge rules on delete
+        sys("iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE")
+        sys("iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT")
+        sys(f"iptables -A FORWARD -i {name} -o eth0 -j ACCEPT")
+
         data = {
             "iface_id": "eth0",
-            "guest_mac": "AA:FC:00:00:00:01",
-            "host_dev_name": "tap0",
+            "guest_mac": f"AA:FC:00:00:00:{self.vm_id}",
+            "host_dev_name": name,
         }
         session = self.get_session()
         response = await session.put('http://localhost/network-interfaces/eth0',
                                      json=data)
+        print(response)
+        print(await response.text())
         response.raise_for_status()
 
     async def start_instance(self):
@@ -171,3 +194,10 @@ class MicroVM:
             self.proc.kill()
         await self.get_session().close()
         self.get_session.cache_clear()
+
+        name = f"tap{self.vm_id}"
+        sys(f"ip tuntap del {name} mode tap")
+
+    def __del__(self):
+        loop = asyncio.get_running_loop()
+        loop.create_task(self.stop())
