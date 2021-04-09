@@ -10,6 +10,7 @@ pool = asyncio.Queue()
 counter = 4
 
 ALEPH_API_SERVER = "https://api2.aleph.im"
+PREALLOC_VMS = 0
 
 async def index(request: web.Request):
     return web.Response(text="Hello, world")
@@ -90,7 +91,7 @@ app.add_routes([web.get('/run/post/{address}', run_code_from_post)])
 
 def run():
     loop = asyncio.get_event_loop()
-    for i in range(5):
+    for i in range(PREALLOC_VMS):
         loop.create_task(register_new_vm())
     print('webapp')
     web.run_app(app)
