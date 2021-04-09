@@ -79,7 +79,7 @@ class MicroVM:
         gid = str(getpwnam('jailman').pw_gid)
         self.proc = await asyncio.create_subprocess_exec(
             './jailer-v0.24.2-x86_64',
-            "--id", str(self.vm_id), "--exec-file", "/root/python-firecracker/firecracker.bin",
+            "--id", str(self.vm_id), "--exec-file", "/opt/firecracker.bin",
             "--uid", uid, "--gid", gid,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,

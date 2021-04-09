@@ -35,6 +35,9 @@ mkdir /srv/jailer
 ```shell
 ./firecracker.bin --no-api --config-file vmconfig.json
 ````
+If all goes well, this should end with a Python stacktrace:
+`OSError: [Errno 97] Address family not supported by protocol`
+followed by a Kernel panic stacktrace.
 
 Then run:
 ```shell
