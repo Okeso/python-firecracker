@@ -65,9 +65,28 @@ async def run_code(request: web.Request):
     return web.json_response(result)
 
 
+async def run_code_from_post(request: web.Request):
+    address = request.match_info['address']
+    url = f"{ALEPH_API_SERVER}/api/v0/posts.json?addresses={address}"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            print(resp.status)
+            data = await resp.json()
+    code = data['posts'][0]['content']['content']['code']
+
+    vm = await get_a_vm()
+    print("Using vm=", vm.vm_id)
+    result = await vm.run_code(code)
+    await vm.stop()
+    system(f"rm -fr {vm.jailer_path}")
+
+    return web.Response(body=result, content_type='text/plain', charset='UTF-8')
+
+
 app = web.Application()
 app.add_routes([web.get('/', index)])
 app.add_routes([web.post('/run/code', run_code)])
+app.add_routes([web.get('/run/post/{address}', run_code_from_post)])
 
 def run():
     loop = asyncio.get_event_loop()
