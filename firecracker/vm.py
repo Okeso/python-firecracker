@@ -3,6 +3,7 @@ from functools import lru_cache
 from os import system, getuid
 import os.path
 from pathlib import Path
+from pwd import getpwnam
 
 import aiohttp
 from aiohttp import ClientResponse
@@ -32,7 +33,7 @@ async def setfacl():
 
 
 class MicroVM:
-    vm_id: str
+    vm_id: int
     proc: asyncio.subprocess.Process
 
     @property
@@ -47,7 +48,7 @@ class MicroVM:
     def vsock_path(self):
         return f"{self.jailer_path}/tmp/v.sock"
 
-    def __init__(self, vm_id: str):
+    def __init__(self, vm_id: int):
         self.vm_id = vm_id
 
     @lru_cache()
@@ -76,8 +77,8 @@ class MicroVM:
     async def start_jailed_firecracker(self) -> asyncio.subprocess.Process:
         self.proc = await asyncio.create_subprocess_exec(
             './jailer-v0.24.2-x86_64',
-            "--id", self.vm_id, "--exec-file", "/root/python-firecracker/firecracker.bin",
-            "--uid", "1000", "--gid", "1000",
+            "--id", str(self.vm_id), "--exec-file", "/root/python-firecracker/firecracker.bin",
+            "--uid", getpwnam('jailman').pw_uid, "--gid", getpwnam('jailman').pw_gid,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -133,7 +134,7 @@ class MicroVM:
         name = f"tap{self.vm_id}"
 
         sys(f"ip tuntap add {name} mode tap")
-        sys(f"ip addr add 172.16.{self.vm_id}.1/24 dev {name}")
+        sys(f"ip addr add 172.{self.vm_id // 256}.{self.vm_id % 256}.1/24 dev {name}")
         sys(f"ip link set {name} up")
         sys('sh -c "echo 1 > /proc/sys/net/ipv4/ip_forward"')
         # TODO: Don't fill iptables with duplicate rules; purge rules on delete
@@ -143,7 +144,7 @@ class MicroVM:
 
         data = {
             "iface_id": "eth0",
-            "guest_mac": f"AA:FC:00:00:00:{self.vm_id}",
+            "guest_mac": f"AA:FC:00:00:00:01",
             "host_dev_name": name,
         }
         session = self.get_session()
@@ -171,7 +172,7 @@ class MicroVM:
             await queue.put(True)
 
         await asyncio.start_unix_server(unix_client_connected, path=f"{self.vsock_path}_52")
-        os.system(f"chown 1000:1000 {self.jailer_path}/tmp/v.sock_52")
+        os.system(f"chown jailman:jailman {self.jailer_path}/tmp/v.sock_52")
         await queue.get()
         print("...signal from init received")
 
