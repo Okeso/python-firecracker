@@ -113,12 +113,10 @@ EOT
 
 # Custom init
 mv /mnt/rootfs/sbin/init /mnt/rootfs/sbin/init.orig
-cp rc.sh /mnt/rootfs/sbin/init
-cp manager.py /mnt/rootfs/root/manager.py
-cp entropy.py /mnt/rootfs/root/entropy.py
+cp init0.sh /mnt/rootfs/sbin/init
+cp init1.py /mnt/rootfs/root/init1.py
 chmod +x /mnt/rootfs/sbin/init
-chmod +x /mnt/rootfs/root/manager.py
-chmod +x /mnt/rootfs/root/entropy.py
+chmod +x /mnt/rootfs/root/init1.py
 
 umount /mnt/rootfs
 

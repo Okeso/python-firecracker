@@ -16,7 +16,7 @@ s0 = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM)
 s0.connect((2, 52))
 s0.close()
 
-print("MANAGER READY")
+print("INIT1 READY")
 
 while True:
     client, addr = s.accept()

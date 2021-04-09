@@ -45,4 +45,4 @@ echo "Net up"
 #echo "SSH UP"
 
 # Replace this script with the manager
-exec /root/manager.py
+exec /root/init1.py
