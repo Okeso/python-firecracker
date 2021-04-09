@@ -4,6 +4,8 @@ import socket
 import subprocess
 import sys
 from os import system
+from io import StringIO
+from contextlib import redirect_stdout
 
 s = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM)
 s.bind((socket.VMADDR_CID_ANY, 52))
@@ -39,17 +41,14 @@ while True:
             client.send(str(error).encode() + b'\n' + error.output)
     else:
         # Python
-        with open('/root/main.py', 'w') as sourcefile:
-            sourcefile.write(msg)
         try:
-            command = "python3 /root/main.py"
-            output = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=True)
-            # preexec_fn=demote(1000, 1000)
+            with StringIO() as buf, redirect_stdout(buf):
+                # Execute in the same process, saves ~20ms than a subprocess
+                exec(msg)
+                output = buf.getvalue().encode()
             client.send(output)
-        except subprocess.CalledProcessError as error:
-            client.send(str(error).encode() + b'\n' + error.output)
-
+        except Exception as error:
+            client.send(str(error).encode())
 
     print('...DONE')
     client.close()
-
