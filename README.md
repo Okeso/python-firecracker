@@ -13,7 +13,10 @@ VM that allows virtualisation (`/dev/kvm`) such as a DigitalOcean droplet.
 Clone this reposotiry on the host machine and run `./host_setup.sh` to configure it.
 
 ```shell
+apt update
+apt -y upgrade
 apt install -y git git-lfs python3 python3-aiohttp sudo acl curl systemd-container
+useradd jailman
 ```
 
 ```shell
@@ -26,7 +29,6 @@ cp vmlinux /opt/vmlinux.bin
 bash create_alpine_disk_image.sh
 cp disks/rootfs.ext4 /opt/rootfs.ext4
 
-useradd jailman
 mkdir /srv/jailer
 ```
 
@@ -42,7 +44,7 @@ followed by a Kernel panic stacktrace.
 Then run:
 ```shell
 export PYTHONPATH=$(pwd)
-python3 firecracker/__main__.py
+python3 -m firecracker
 ```
 
 Test running code from an Aleph.im post on:
