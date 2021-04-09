@@ -27,6 +27,8 @@ cp firecracker.bin /opt/firecracker.bin
 cp vmlinux /opt/vmlinux.bin
 
 bash create_alpine_disk_image.sh
+# Not sure why yet, but run it once more \o/ 
+bash create_alpine_disk_image.sh
 cp disks/rootfs.ext4 /opt/rootfs.ext4
 
 mkdir /srv/jailer
