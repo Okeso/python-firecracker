@@ -5,16 +5,36 @@
 This project provides a service that runs untrusted Python code in Firecracker
 "micro virtual machines".
 
+The following instructions are tested while running as root, either on bare metal or on a
+VM that allows virtualisation (`/dev/kvm`) such as a DigitalOcean droplet.
+
 ## Running
 
 Clone this reposotiry on the host machine and run `./host_setup.sh` to configure it.
 
 ```shell
-git clone https://github.com/Okeso/python-firecracker.git
-
-
-
+apt install -y git git-lfs python3 python3-aiohttp sudo acl curl systemd-container
 ```
+
+```shell
+git clone https://github.com/Okeso/python-firecracker.git
+cd python-firecracker/
+# Make files available to all users
+cp firecracker.bin /opt/firecracker.bin
+cp vmlinux /opt/vmlinux.bin
+
+bash create_alpine_disk_image.sh
+cp disks/rootfs.ext4 /opt/rootfs.ext4
+
+useradd jailman
+mkdir /srv/jailer
+```
+
+### Test Firecracker
+
+```shell
+./firecracker.bin --no-api --config-file vmconfig.json
+````
 
 Then run:
 ```shell

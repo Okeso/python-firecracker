@@ -26,8 +26,8 @@ async def get_new_vm() -> MicroVM:
     vm.cleanup_jailer()
     await vm.start_jailed_firecracker()
     await vm.socket_is_ready()
-    await vm.set_boot_source('vmlinux.bin')
-    await vm.set_rootfs('disks/rootfs.ext4')
+    await vm.set_boot_source('/opt/vmlinux.bin')
+    await vm.set_rootfs('/opt/rootfs.ext4')
     await vm.set_vsock()
     await vm.set_network()
     await asyncio.gather(
