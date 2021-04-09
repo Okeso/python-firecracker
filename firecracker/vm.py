@@ -97,7 +97,8 @@ class MicroVM:
         os.link(kernel_image_path, f"{self.jailer_path}{jailer_kernel_image_path}")
         data = {
             "kernel_image_path": jailer_kernel_image_path,
-            "boot_args": "console=ttyS0 reboot=k panic=1 pci=off",
+            # Add console=ttyS0 for debugging, but it makes the boot twice slower
+            "boot_args": "reboot=k panic=1 pci=off ro noapic nomodules random.trust_cpu=on",
         }
         session = self.get_session()
         response: ClientResponse = await session.put(
